@@ -18,6 +18,7 @@ export const NotificationsPanel: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [showUnread, setShowUnread] = useState(false);
   const { message } = useSocket("ws://localhost:3001");
 
   useEffect(() => {
@@ -73,23 +74,37 @@ export const NotificationsPanel: React.FC = () => {
     );
   };
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const filteredNotifications = showUnread ? notifications.filter(n => !n.read) : notifications;
+
   return (
-    <div className="bg-white rounded shadow p-4 mt-6 max-w-md mx-auto text-right" dir="rtl">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-bold">اعلان‌ها</h3>
-        <button
-          className="text-xs bg-gray-200 rounded px-2 py-1 hover:bg-gray-300"
-          onClick={markAllAsRead}
-        >
-          علامت‌گذاری همه به عنوان خوانده‌شده
-        </button>
+    <div className="bg-white shadow rounded p-4 w-full max-w-lg mx-auto mt-6 rtl">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="font-bold text-lg">اعلان‌ها</h2>
+          <span className={`inline-block min-w-[24px] text-center rounded-full text-xs px-2 py-0.5 ${unreadCount > 0 ? "bg-red-500 text-white" : "bg-gray-200 text-gray-600"}`}>{unreadCount}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className={`text-xs rounded px-2 py-1 ${showUnread ? "bg-blue-600 text-white" : "bg-blue-100 hover:bg-blue-200"}`}
+            onClick={() => setShowUnread(!showUnread)}
+          >
+            {showUnread ? "نمایش همه" : "فقط خوانده‌نشده‌ها"}
+          </button>
+          <button
+            className="text-xs bg-green-100 rounded px-2 py-1 hover:bg-green-200"
+            onClick={markAllAsRead}
+          >
+            علامت‌گذاری همه به عنوان خوانده‌شده
+          </button>
+        </div>
       </div>
       <ul className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
         {loading ? (
           <li className="py-4 text-gray-400 text-center">در حال بارگذاری...</li>
-        ) : notifications.length === 0 ? (
+        ) : filteredNotifications.length === 0 ? (
           <li className="py-4 text-gray-400 text-center">هیچ اعلانی وجود ندارد.</li>
-        ) : notifications.map((n) => (
+        ) : filteredNotifications.map((n) => (
           <li
             key={n.id}
             className={`py-2 px-1 flex items-center gap-2 ${n.read ? "bg-gray-50" : "bg-yellow-50"}`}
@@ -106,6 +121,28 @@ export const NotificationsPanel: React.FC = () => {
                 خواندم
               </button>
             )}
+            <button
+              className="text-xs bg-red-100 rounded px-2 py-1 hover:bg-red-200 text-red-700 ml-2"
+              onClick={async () => {
+                if (window.confirm("آیا از حذف این اعلان مطمئن هستید؟")) {
+                  if (!userId) return;
+                  const res = await fetch("/api/delete-notification", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notificationId: n.id, userId }),
+                  });
+                  const result = await res.json();
+                  if (res.ok) {
+                    setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+                    toast.success("اعلان حذف شد.");
+                  } else {
+                    toast.error(result.message || "خطا در حذف اعلان");
+                  }
+                }
+              }}
+            >
+              حذف
+            </button>
             <span className="text-xs text-gray-400 ml-2">{new Date(n.createdAt).toLocaleTimeString("fa-IR")}</span>
           </li>
         ))}

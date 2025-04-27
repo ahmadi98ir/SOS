@@ -25,6 +25,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           })
         )
       );
+      // ارسال اعلان بلادرنگ به همه
+      try {
+        await fetch("http://localhost:3002/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: "all", message, type }),
+        });
+      } catch (e) {
+        console.log("ws-server is not available for broadcast");
+      }
       return res.status(201).json({ message: "اعلان برای همه کاربران ارسال شد." });
     } else {
       // اعلان برای کاربر خاص
@@ -35,6 +45,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           type,
         },
       });
+      // ارسال اعلان بلادرنگ به کاربر خاص
+      try {
+        await fetch("http://localhost:3002/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, message, type }),
+        });
+      } catch (e) {
+        console.log("ws-server is not available for broadcast");
+      }
       return res.status(201).json({ message: "اعلان ارسال شد." });
     }
   } catch {
